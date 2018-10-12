@@ -9,6 +9,9 @@ class DataGrid extends Component {
     constructor(props) {
         super(props);
         
+        const {fields} = props;
+        this._fieldKeys = Object.keys(fields);
+
         this.state = this._setState(props);
     }
 
@@ -42,10 +45,25 @@ class DataGrid extends Component {
         }, () => console.log(this.state));
     }
 
+    _getCellAlign (type) {
+
+        switch (type){
+            case 'integer':
+            case 'float':
+                return 'right';
+            case 'selector':
+            case 'button':
+            case 'boolean':
+            case 'color':
+                return 'center';
+            default:
+                return 'left';
+        }
+    }
+
     _renderHeader() {
 
-        const {fields} = this.props;
-        const fieldKeys = Object.keys(fields);
+        const fieldKeys = this._fieldKeys;
 
         return (
             <div className="table-list-header">
@@ -116,6 +134,8 @@ class DataGrid extends Component {
 
     _renderBody() {
 
+        const fieldKeys = this._fieldKeys;
+
         const {items = []} = this.state;
 
         if(items.length > 0) {
@@ -132,6 +152,64 @@ class DataGrid extends Component {
         else {
             return null;
         }     
+    }
+
+    _renderBodyRow(item, key) {
+
+        const fieldKeys = this._fieldKeys;
+
+        //data-item-id
+        return (
+            <tr key={key}>{fieldKeys.map(this._renderBodyCell.bind(this, item))}</tr>
+        );
+    }
+
+    _renderBodyCell(item, columnIndex) {
+
+        const {fields, align} = this.props;
+        const currentField = fields[columnIndex];
+
+        const {width, type, align: fieldAlign, formatter, yes: fieldYes, no: fieldNo, styler, icon} = currentField;
+
+        const cellAlign = align ? fieldAlign || this._getCellAlign(type) : '';    
+
+        const renderCell = cellValue => <td key={columnIndex} style={{width: width + 'px', textALign: cellAlign}}>{cellValue}</td>;
+
+        let currentCellValue = null;
+
+        switch(type) {
+
+            case 'selector':
+                const cellValue = Boolean(item[columnIndex]);
+                currentCellValue = <input type="checkbox" checked={cellValue} value={item[columnIndex]} />;
+                break;
+
+            case 'button':
+                const {button: buttonClass} = currentField;
+                currentCellValue = <i className={`table-list-button ${buttonClass}`} />;
+
+            case 'boolean':
+                const fieldValue = typeof formatter === 'function' ? formatter (item) : item[columnIndex];
+                const cell = (fieldYes || fieldNo) ? <i className={`table-list-button ${icon} ${fieldValue ? (fieldYes || '') : (fieldNo || '')}`} /> : `${fieldValue ? '+' : ''}`;
+                currentCellValue = cell;
+                break;
+
+            case 'color':
+                currentCellValue = <div className="table-list-color" style={{borderColor: item[columnIndex] !== 'undefined' ? item[columnIndex] : '#ffffff'}}>&nbsp;</div>;
+                break;
+            
+            default:                
+                if (typeof styler === 'function') {                    
+                    currentCellValue = <i className={styler(item)} />;
+                }
+                else {
+                    const val = typeof formatter === 'function' ? formatter (item) : item[columnIndex];
+                    //return `<td${align}><span>${val}</span>${field.edit ? '<i class="cell-edit"></i>' :''}</td>`;
+                    currentCellValue = <span>{val}</span>;
+                }
+        }
+
+        return renderCell(currentCellValue);
     }
 
     render() {
